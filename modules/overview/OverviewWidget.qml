@@ -44,7 +44,7 @@ Item {
 
     property real workspaceNumberMargin: 80
     property real workspaceNumberSize: Config.options.overview.workspaceNumberBaseSize * monitor.scale
-    property color workspaceOccupiedFill: ColorUtils.applyAlpha(Color.launcher.selectedText, 0.055)
+    property int workspaceBorderThickness: Math.max(1, Style.normalBorderWidth)
     property int workspaceLabelSize: Math.max(10, Math.round(root.workspaceImplicitHeight * 0.09))
     property int workspaceZ: 0
     property int windowZ: 1
@@ -435,13 +435,12 @@ Item {
                             property color hoveredWorkspaceColor: root.workspaceHoverFill
                             property color hoveredBorderColor: root.activeBorderColor
                             property bool hoveredWhileDragging: false
-                            property color stateFill: hoveredWhileDragging
-                                ? hoveredWorkspaceColor
-                                : (hasWindows ? root.workspaceOccupiedFill : defaultWorkspaceColor)
 
                             implicitWidth: root.workspaceImplicitWidth
                             implicitHeight: root.workspaceImplicitHeight
-                            color: showWallpaper ? "transparent" : stateFill
+                            color: (showWallpaper || (!root.workspaceHasWindows(workspaceValue) && !hoveredWhileDragging))
+                                ? "transparent"
+                                : (hoveredWhileDragging ? hoveredWorkspaceColor : defaultWorkspaceColor)
                             radius: Style.cornerRadius
                             border.width: hoveredWhileDragging ? Math.max(1, Style.space(1)) : 0
                             border.color: hoveredWhileDragging
@@ -488,9 +487,7 @@ Item {
                                     workspace.hoveredWhileDragging ? workspace.hoveredWorkspaceColor : workspace.defaultWorkspaceColor,
                                     workspace.hoveredWhileDragging
                                         ? Math.min(0.20, root.emptyWorkspaceWallpaperOverlayOpacity + 0.06)
-                                        : (workspace.hasWindows
-                                            ? Math.max(0, root.emptyWorkspaceWallpaperOverlayOpacity - 0.08)
-                                            : root.emptyWorkspaceWallpaperOverlayOpacity)
+                                        : root.emptyWorkspaceWallpaperOverlayOpacity
                                 )
                             }
 
@@ -1186,18 +1183,54 @@ Item {
                     height: root.workspaceImplicitHeight
                     z: root.windowDraggingZ - 1
 
+                    readonly property color lineColor: isActive
+                        ? Color.launcher.selectedText
+                        : ColorUtils.applyAlpha(Color.launcher.text, 0.75)
+                    readonly property real labelGap: Math.round(root.workspaceLabelSize * 0.6)
+
+                    Rectangle { // Workspace border, broken where the number sits
+                        id: workspaceBorder
+                        anchors.fill: parent
+                        color: "transparent"
+                        radius: Style.cornerRadius
+                        border.width: root.workspaceBorderThickness
+                        border.color: workspaceLabel.lineColor
+                        layer.enabled: true
+                        layer.smooth: true
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskInverted: true
+                            maskSource: workspaceBorderMask
+                            maskThresholdMin: 0.5
+                            maskSpreadAtMin: 1.0
+                        }
+                    }
+
+                    Item {
+                        id: workspaceBorderMask
+                        anchors.fill: workspaceBorder
+                        visible: false
+                        layer.enabled: true
+                        layer.smooth: true
+                        Rectangle { // Cut-out for the number
+                            width: labelText.implicitWidth + workspaceLabel.labelGap * 2
+                            height: labelText.implicitHeight
+                            x: (parent.width - width) / 2
+                            y: parent.height - height / 2
+                        }
+                    }
+
                     StyledText {
+                        id: labelText
                         anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: parent.bottom
+                        y: parent.height - Math.round(implicitHeight / 2)
                         text: workspaceLabel.workspaceValue
                         font {
                             pixelSize: root.workspaceLabelSize
                             weight: workspaceLabel.isActive ? Font.Bold : Font.DemiBold
                             family: Style.font.family
                         }
-                        color: workspaceLabel.isActive
-                            ? Color.launcher.selectedText
-                            : ColorUtils.applyAlpha(Color.launcher.text, 0.75)
+                        color: workspaceLabel.lineColor
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignBottom
                     }
