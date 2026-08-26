@@ -104,7 +104,7 @@ Settings are read inline from `~/.config/omarchy/shell.json` inside the `plugins
 | `hideEmptyRows` | `boolean` | `true` | Hides empty rows automatically. |
 | `showSpecialWorkspaces` | `boolean` | `false` | Includes special scratchpad workspaces. |
 | `specialWorkspaceColumns` | `integer` | `5` | Columns count for special workspaces. |
-| `showIcons` | `boolean` | `false` | Display resolution-matched app icons on window delegates. |
+| `showIcons` | `boolean` | `true` | Display resolution-matched app icons in the top-left of window previews. |
 
 ---
 

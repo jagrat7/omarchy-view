@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
@@ -55,9 +54,9 @@ Item { // Window
 
     property var appLibrary: null
     property bool showIcons: Config.options.windowPreview.showIcons
-    property var iconToWindowRatio: Config.options.windowPreview.iconToWindowRatio
+    property real iconToWorkspaceRatio: Config.options.windowPreview.iconToWorkspaceRatio
     property var xwaylandIndicatorToIconRatio: Config.options.windowPreview.xwaylandIndicatorToIconRatio
-    property var iconToWindowRatioCompact: Config.options.windowPreview.iconToWindowRatioCompact
+    property real maxIconToWindowRatio: Config.options.windowPreview.iconToWindowRatioCompact
     property bool cropToFill: Config.options.windowPreview.cropToFill
     property bool previewsEnabled: Config.options.overview.previewsEnabled
     property bool includeInactiveMonitorPreviews: Config.options.overview.includeInactiveMonitorPreviews
@@ -254,8 +253,6 @@ Item { // Window
     }
 
     property var iconPath: resolveIconSource(iconName)
-    property bool compactMode: Style.font.caption * 4 > targetWindowHeight || Style.font.caption * 4 > targetWindowWidth
-
     property bool indicateXWayland: windowData?.xwayland ?? false
     property bool previewCaptureEnabled: true
     property bool initialized: false
@@ -340,28 +337,27 @@ Item { // Window
         border.color: hovered || pressed ? Style.hoverBorderColor : Style.normalBorderColor
         border.width: Style.normalBorderWidth
 
-        ColumnLayout {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.right: parent.right
-            spacing: Style.spacing.sm
-
-            Image {
-                id: windowIcon
-                visible: root.showIcons
-                property var iconSize: {
-                    const renderedSize = Math.min(root.width, root.height);
-                    return renderedSize * (root.compactMode ? root.iconToWindowRatioCompact : root.iconToWindowRatio) / (root.monitorData?.scale ?? 1);
-                }
-                Layout.alignment: Qt.AlignHCenter
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-                source: root.iconPath
-                width: iconSize
-                height: iconSize
-                sourceSize.width: Math.max(1, Math.round(iconSize * Screen.devicePixelRatio))
-                sourceSize.height: Math.max(1, Math.round(iconSize * Screen.devicePixelRatio))
+        Image {
+            id: windowIcon
+            visible: root.showIcons
+            readonly property real iconSize: {
+                const workspaceSize = Math.min(root.availableWorkspaceWidth, root.availableWorkspaceHeight);
+                const consistentSize = workspaceSize * root.iconToWorkspaceRatio;
+                const fittingSize = Math.min(root.width, root.height) * root.maxIconToWindowRatio;
+                return Math.max(1, Math.min(consistentSize, fittingSize));
             }
+            readonly property real edgeMargin: Math.max(2, iconSize * 0.16)
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.leftMargin: edgeMargin
+            anchors.topMargin: edgeMargin
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+            source: root.iconPath
+            width: iconSize
+            height: iconSize
+            sourceSize.width: Math.max(1, Math.round(iconSize * Screen.devicePixelRatio))
+            sourceSize.height: Math.max(1, Math.round(iconSize * Screen.devicePixelRatio))
         }
     }
 

@@ -184,7 +184,8 @@ Singleton {
         }
 
         property QtObject windowPreview: QtObject {
-            property bool showIcons: root.asBool(root.setting("showIcons", false), false)
+            property bool showIcons: root.asBool(root.setting("showIcons", true), true)
+            property real iconToWorkspaceRatio: root.readReal("windowPreview.iconToWorkspaceRatio", 0.16)
             property real iconToWindowRatio: root.readReal("windowPreview.iconToWindowRatio", 0.25)
             property real iconToWindowRatioCompact: root.readReal("windowPreview.iconToWindowRatioCompact", 0.45)
             property real xwaylandIndicatorToIconRatio: root.readReal("windowPreview.xwaylandIndicatorToIconRatio", 0.35)

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "omarchy-overview",
-  "name": "Overview",
+  "name": "Overview v2",
   "version": "1.0.0",
   "author": "AyushKr2003",
   "description": "Hyprland workspace overview with live window previews.",
@@ -19,7 +19,7 @@
       "hideEmptyRows": true,
       "showSpecialWorkspaces": false,
       "specialWorkspaceColumns": 5,
-      "showIcons": false
+      "showIcons": true
     },
     "schema": [
       {
@@ -65,7 +65,7 @@
         "key": "showIcons",
         "type": "boolean",
         "label": "Show app icons",
-        "defaultValue": false
+        "defaultValue": true
       }
     ]
   }
