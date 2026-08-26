@@ -18,6 +18,8 @@ Scope {
     property var settings: ({})
     property bool opened: GlobalStates.overviewOpen
     property string selectedWindowAddress: ""
+    property int selectedWorkspaceId: 0
+    property bool workspaceSelectionActive: false
     property bool windowSwitching: false
     property var heldSwitchKeys: ({})
     property bool sawSwitchKeyEvent: false
@@ -103,10 +105,15 @@ Scope {
 
     function selectCurrentWindow() {
         const candidates = windowCandidates();
-        selectedWindowAddress = candidates.length > 0 ? normalizedAddress(candidates[0].address) : "";
+        const currentWindow = candidates.length > 0 ? candidates[0] : null;
+        selectedWindowAddress = currentWindow ? normalizedAddress(currentWindow.address) : "";
+        selectedWorkspaceId = Number(currentWindow?.workspace?.id) || 0;
+        workspaceSelectionActive = false;
     }
 
     function selectWorkspaceWindow(workspaceId) {
+        selectedWorkspaceId = workspaceId;
+        workspaceSelectionActive = true;
         const candidates = windowCandidates();
         const workspaceWindow = candidates.find(windowData =>
             Number(windowData?.workspace?.id) === workspaceId);
@@ -159,8 +166,10 @@ Scope {
 
     function cycleWindow(delta) {
         const candidates = windowCandidates();
+        workspaceSelectionActive = false;
         if (candidates.length === 0) {
             selectedWindowAddress = "";
+            selectedWorkspaceId = 0;
             return;
         }
 
@@ -171,7 +180,9 @@ Scope {
             currentIndex = step > 0 ? -1 : 0;
 
         const nextIndex = (currentIndex + step + candidates.length) % candidates.length;
-        selectedWindowAddress = normalizedAddress(candidates[nextIndex].address);
+        const nextWindow = candidates[nextIndex];
+        selectedWindowAddress = normalizedAddress(nextWindow.address);
+        selectedWorkspaceId = Number(nextWindow?.workspace?.id) || 0;
     }
 
     function startWindowSwitch(delta) {
@@ -221,6 +232,8 @@ Scope {
     onOpenedChanged: {
         if (!opened) {
             selectedWindowAddress = "";
+            selectedWorkspaceId = 0;
+            workspaceSelectionActive = false;
             windowSwitching = false;
             resetSwitchKeyState();
         }
@@ -243,9 +256,20 @@ Scope {
 
             const candidates = overviewScope.windowCandidates();
             const selectionStillExists = candidates.some(windowData =>
-                overviewScope.normalizedAddress(windowData?.address) === overviewScope.selectedWindowAddress);
+                overviewScope.normalizedAddress(windowData?.address) === overviewScope.selectedWindowAddress
+                    && (!overviewScope.workspaceSelectionActive
+                        || Number(windowData?.workspace?.id) === overviewScope.selectedWorkspaceId));
             if (selectionStillExists)
                 return;
+
+            // An empty selection is intentional after navigating to an empty
+            // workspace. Do not replace it with an unrelated MRU window when
+            // Hyprland refreshes the client list after the workspace switch.
+            if (overviewScope.workspaceSelectionActive) {
+                if (overviewScope.selectedWindowAddress.length > 0)
+                    overviewScope.selectWorkspaceWindow(overviewScope.selectedWorkspaceId);
+                return;
+            }
 
             overviewScope.selectCurrentWindow();
             if (overviewScope.windowSwitching)
@@ -307,7 +331,11 @@ Scope {
                         || !overviewScope.heldSwitchKeysEmpty())
                     return;
 
-                if (!modifierStateCollector.text.trim().endsWith("true"))
+                const match = modifierStateCollector.text.trim().match(/(?:^|[\s:])(true|false)$/);
+                if (!match)
+                    return;
+
+                if (match[1] === "false")
                     overviewScope.activateSelectedWindow();
             }
         }
@@ -498,7 +526,11 @@ Scope {
 
                     // Helper: compute current group bounds
                     const workspacesPerGroup = Config.options.overview.rows * Config.options.overview.columns;
-                    const currentId = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 1;
+                    const compositorWorkspaceId = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 1;
+                    const currentId = overviewScope.workspaceSelectionActive
+                        && overviewScope.selectedWorkspaceId > 0
+                        ? overviewScope.selectedWorkspaceId
+                        : compositorWorkspaceId;
                     const useWorkspaceMap = Config.options.overview.useWorkspaceMap;
                     const workspaceMap = Config.options.overview.workspaceMap ?? [];
                     const focusedMonitorId = Hyprland.focusedMonitor?.id ?? root.monitor?.id ?? 0;

@@ -12,7 +12,7 @@ Item { // Window
     property var windowData
     property var monitorData
     property var widgetMonitorData
-    property var scale
+    property real overviewScale: 1
     property var availableWorkspaceWidth
     property var availableWorkspaceHeight
     property real positionBaseX: (monitorData?.x ?? 0) + (monitorData?.reserved?.[0] ?? 0)
@@ -42,18 +42,18 @@ Item { // Window
         return (widgetHeight * sourceScale) / (sourceHeight * widgetScale);
     }
     property real initX: {
-        const mappedX = ((windowData?.at[0] ?? 0) - positionBaseX) * root.scale * geometryScaleX;
+        const mappedX = ((windowData?.at[0] ?? 0) - positionBaseX) * root.overviewScale * geometryScaleX;
         return (root.clampPositionX ? Math.max(mappedX, 0) : mappedX) + positionOffsetX + xOffset;
     }
-    property real initY: Math.max(((windowData?.at[1] ?? 0) - positionBaseY) * root.scale * geometryScaleY, 0) + yOffset
+    property real initY: Math.max(((windowData?.at[1] ?? 0) - positionBaseY) * root.overviewScale * geometryScaleY, 0) + yOffset
     property real xOffset: 0
     property real yOffset: 0
     property int widgetMonitorId: 0
     property real geometryScaleX: widthRatio
     property real geometryScaleY: heightRatio
     
-    property var targetWindowWidth: (windowData?.size[0] ?? 100) * scale * geometryScaleX
-    property var targetWindowHeight: (windowData?.size[1] ?? 100) * scale * geometryScaleY
+    property real targetWindowWidth: (windowData?.size[0] ?? 100) * overviewScale * geometryScaleX
+    property real targetWindowHeight: (windowData?.size[1] ?? 100) * overviewScale * geometryScaleY
     property bool hovered: false
     property bool pressed: false
     property bool selected: false

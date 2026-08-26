@@ -30,17 +30,17 @@ Item {
     property string selectedWindowAddress: ""
     property var workspaceIds: HyprlandData.workspaceIds
     property var monitorData: HyprlandData.monitors.find(m => m.id === root.monitor?.id)
-    property real scale: Config.options.overview.scale
+    property real overviewScale: Config.options.overview.scale
     property color activeBorderColor: ColorUtils.applyAlpha(Color.launcher.selectedText, 0.55)
     property color workspaceCursorFill: Color.launcher.selectedBackground
     property color workspaceHoverFill: ColorUtils.applyAlpha(Color.launcher.selectedText, 0.045)
 
     property real workspaceImplicitWidth: Math.round((monitorData?.transform % 2 === 1) ?
-        ((monitor.height / monitor.scale - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.scale) :
-        ((monitor.width / monitor.scale - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.scale))
+        ((monitor.height / monitor.scale - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.overviewScale) :
+        ((monitor.width / monitor.scale - (monitorData?.reserved?.[0] ?? 0) - (monitorData?.reserved?.[2] ?? 0)) * root.overviewScale))
     property real workspaceImplicitHeight: Math.round((monitorData?.transform % 2 === 1) ?
-        ((monitor.width / monitor.scale - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.scale) :
-        ((monitor.height / monitor.scale - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.scale))
+        ((monitor.width / monitor.scale - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.overviewScale) :
+        ((monitor.height / monitor.scale - (monitorData?.reserved?.[1] ?? 0) - (monitorData?.reserved?.[3] ?? 0)) * root.overviewScale))
 
     property real workspaceNumberMargin: 80
     property real workspaceNumberSize: Config.options.overview.workspaceNumberBaseSize * monitor.scale
@@ -158,7 +158,7 @@ Item {
         const rawWidth = (root.specialGridInnerWidth - gaps * root.scaledWorkspaceSpacing) / root.effectiveSpecialColumns;
         const aspectWidth = root.specialWorkspaceTileHeight * root.specialWorkspaceAspectCap;
         const cappedWidth = Math.min(rawWidth, aspectWidth);
-        return Math.max(80 * root.scale, cappedWidth);
+        return Math.max(80 * root.overviewScale, cappedWidth);
     }
     readonly property real specialGridUsedWidth: root.effectiveSpecialColumns * root.specialWorkspaceTileWidth + Math.max(0, root.effectiveSpecialColumns - 1) * root.scaledWorkspaceSpacing
     readonly property real specialGridOffsetX: root.specialStripPadding + Math.max(0, (root.specialGridInnerWidth - root.specialGridUsedWidth) / 2)
@@ -314,7 +314,7 @@ Item {
             const atX = win?.at?.[0];
             const width = win?.size?.[0];
             const positionBaseX = (sourceMonitorData?.x ?? 0) + (sourceMonitorData?.reserved?.[0] ?? 0);
-            const geometryScaleX = root.scale * root.widthRatioForMonitor(sourceMonitorData);
+            const geometryScaleX = root.overviewScale * root.widthRatioForMonitor(sourceMonitorData);
             const mappedX = (atX - positionBaseX) * geometryScaleX;
             const mappedRight = mappedX + width * geometryScaleX;
             const usesScrollingHandler = `${win?.fullscreenHandler ?? ""}`.trim().toLowerCase() === "scrolling";
@@ -339,7 +339,7 @@ Item {
                 continue;
 
             const positionBaseX = (sourceMonitorData.x ?? 0) + (sourceMonitorData.reserved?.[0] ?? 0);
-            const geometryScaleX = root.scale * root.widthRatioForMonitor(sourceMonitorData);
+            const geometryScaleX = root.overviewScale * root.widthRatioForMonitor(sourceMonitorData);
             const mappedX = (atX - positionBaseX) * geometryScaleX;
             const mappedRight = mappedX + width * geometryScaleX;
             const current = geometries[workspaceId] ?? {
@@ -656,7 +656,7 @@ Item {
                                 visible: !workspace.showWallpaper && !workspace.hasWindows
                                 text: workspaceValue
                                 font {
-                                    pixelSize: root.workspaceNumberSize * root.scale
+                                    pixelSize: root.workspaceNumberSize * root.overviewScale
                                     weight: Font.DemiBold
                                     family: Style.font.family
                                 }
@@ -756,9 +756,9 @@ Item {
                                     && specialGeometry.width > 0
                                     && specialGeometry.height > 0
                                 property bool showWallpaper: root.hasSpecialEmptyWorkspaceWallpaper
-                                property real geometryWidth: hasRenderableGeometry ? specialGeometry.width : Math.max(1, root.workspaceImplicitWidth / root.scale)
-                                property real geometryHeight: hasRenderableGeometry ? specialGeometry.height : Math.max(1, root.workspaceImplicitHeight / root.scale)
-                                property real fitScale: hasRenderableGeometry ? Math.min(width / geometryWidth, height / geometryHeight) : root.scale
+                                property real geometryWidth: hasRenderableGeometry ? specialGeometry.width : Math.max(1, root.workspaceImplicitWidth / root.overviewScale)
+                                property real geometryHeight: hasRenderableGeometry ? specialGeometry.height : Math.max(1, root.workspaceImplicitHeight / root.overviewScale)
+                                property real fitScale: hasRenderableGeometry ? Math.min(width / geometryWidth, height / geometryHeight) : root.overviewScale
                                 property real contentWidth: hasRenderableGeometry ? (geometryWidth * fitScale) : width
                                 property real contentHeight: hasRenderableGeometry ? (geometryHeight * fitScale) : height
                                 property real contentOffsetX: Math.max(0, (width - contentWidth) / 2)
@@ -903,13 +903,13 @@ Item {
                                             toplevel: modelData
                                             monitorData: monitor
                                             widgetMonitorData: root.monitorData
-                                            scale: root.scale
+                                            overviewScale: root.overviewScale
                                             availableWorkspaceWidth: specialWorkspaceContent.width
                                             availableWorkspaceHeight: specialWorkspaceContent.height
                                             positionBaseX: Number.isFinite(specialWorkspaceTile.specialGeometry?.x) ? specialWorkspaceTile.specialGeometry.x : ((monitor?.x ?? 0) + (monitor?.reserved?.[0] ?? 0))
                                             positionBaseY: Number.isFinite(specialWorkspaceTile.specialGeometry?.y) ? specialWorkspaceTile.specialGeometry.y : ((monitor?.y ?? 0) + (monitor?.reserved?.[1] ?? 0))
-                                            geometryScaleX: specialWorkspaceTile.fitScale / root.scale
-                                            geometryScaleY: specialWorkspaceTile.fitScale / root.scale
+                                            geometryScaleX: specialWorkspaceTile.fitScale / root.overviewScale
+                                            geometryScaleY: specialWorkspaceTile.fitScale / root.overviewScale
                                             xOffset: 0
                                             yOffset: 0
                                             widgetMonitorId: root.monitor.id
@@ -1205,7 +1205,7 @@ Item {
                     toplevel: modelData
                     monitorData: monitor
                     widgetMonitorData: root.monitorData
-                    scale: root.scale
+                    overviewScale: root.overviewScale
                     availableWorkspaceWidth: root.workspaceDisplayWidth(windowData?.workspace?.id)
                     availableWorkspaceHeight: root.workspaceImplicitHeight
                     widgetMonitorId: root.monitor.id
