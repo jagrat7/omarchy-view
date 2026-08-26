@@ -81,8 +81,13 @@ The same global shortcut can be assigned to another modifier such as
 `SUPER + TAB`. Hold the modifier to keep the overview open, press `Tab`
 repeatedly to cycle through windows in most-recently-used order, and release
 the modifier to focus the highlighted window. While the overview is open,
-`Shift+Tab` cycles backward, `Enter` confirms the selection, and `Escape`
-cancels without changing focus.
+`Shift+Tab` cycles backward. Use the arrow keys or `H`/`J`/`K`/`L` to move
+between workspaces in the displayed grid; navigation wraps at the grid edges.
+The number keys jump directly to a workspace in the current group (`1`-`9`,
+with `0` selecting the tenth workspace). Releasing the modifier after choosing
+a workspace focuses its most-recent window, or leaves an empty workspace
+active. `Enter` confirms the highlighted window and `Escape` cancels window
+selection.
 
 ---
 
@@ -120,6 +125,7 @@ Settings are read inline from `~/.config/omarchy/shell.json` inside the `plugins
 - **Live Window Previews**: Renders real-time Hyprland window thumbnails across workspaces.
 - **Scrolling Layout Support**: Expands scrolling workspaces horizontally to reveal off-screen tape windows, with a bounded maximum width.
 - **Keyboard Window Switching**: Cycles through app windows with `Tab` / `Shift+Tab`, with commit-on-modifier-release behavior.
+- **Keyboard Workspace Navigation**: Moves through the workspace grid with arrow keys or `H`/`J`/`K`/`L`, with direct number-key selection.
 - **Dynamic App Icon Resolution**: Resolves standard GUI apps, webapps/PWAs (Chrome/Brave/Edge), and terminal TUI apps (Yazi, Neovim, btop, ranger) matching `omarchy.menu`.
 - **Theme Integration**: Follows active Omarchy shell theme tokens (`qs.Commons.Color` & `qs.Commons.Style`).
 - **HiDPI Scaling**: Automatically scales icon rendering by `Screen.devicePixelRatio` for sharp rendering.

@@ -368,45 +368,66 @@ Item {
         return Math.min(root.scrollingWorkspaceMaxWidth, Math.max(root.workspaceImplicitWidth, geometry.width));
     }
 
-    readonly property var desiredWorkspaceColumnWidths: {
-        const widths = Array(Config.options.overview.columns).fill(root.workspaceImplicitWidth);
+    readonly property real baseWorkspaceGridWidth: Config.options.overview.columns * root.workspaceImplicitWidth
+        + Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing
+    readonly property var desiredWorkspaceRowWidths: {
+        const widths = Array(Config.options.overview.rows).fill(root.baseWorkspaceGridWidth);
         for (let rowIndex = 0; rowIndex < Config.options.overview.rows; rowIndex++) {
-            if (Config.options.overview.hideEmptyRows && root.rowsWithContent && !root.rowsWithContent.has(rowIndex))
-                continue;
+            let width = Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing;
             for (let colIndex = 0; colIndex < Config.options.overview.columns; colIndex++) {
                 const workspaceId = root.getWorkspaceInCell(rowIndex, colIndex);
-                widths[colIndex] = Math.max(widths[colIndex], root.workspaceNaturalWidth(workspaceId));
+                width += root.workspaceNaturalWidth(workspaceId);
             }
+            widths[rowIndex] = width;
         }
         return widths;
     }
 
-    readonly property real baseWorkspaceGridWidth: Config.options.overview.columns * root.workspaceImplicitWidth
-        + Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing
-    readonly property real desiredWorkspaceGridWidth: root.desiredWorkspaceColumnWidths.reduce((sum, width) => sum + width, 0)
-        + Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing
     readonly property real maxWorkspaceGridWidth: {
         const panelWidth = root.panelWindow?.width ?? root.baseWorkspaceGridWidth;
         const outerMargins = Appearance.sizes.elevationMargin * 2 + Style.spaceReal(Config.options.overview.backgroundPadding) * 2;
         return Math.max(root.baseWorkspaceGridWidth, panelWidth - outerMargins);
     }
-    readonly property real workspaceExpansionScale: {
-        const desiredExpansion = root.desiredWorkspaceGridWidth - root.baseWorkspaceGridWidth;
+
+    function workspaceRowExpansionScale(rowIndex) {
+        const desiredWidth = root.desiredWorkspaceRowWidths[rowIndex] ?? root.baseWorkspaceGridWidth;
+        const desiredExpansion = desiredWidth - root.baseWorkspaceGridWidth;
         if (desiredExpansion <= 0)
             return 1;
         const availableExpansion = Math.max(0, root.maxWorkspaceGridWidth - root.baseWorkspaceGridWidth);
         return Math.min(1, availableExpansion / desiredExpansion);
     }
 
-    function workspaceColumnWidth(colIndex) {
-        const desiredWidth = root.desiredWorkspaceColumnWidths[colIndex] ?? root.workspaceImplicitWidth;
-        return root.workspaceImplicitWidth + (desiredWidth - root.workspaceImplicitWidth) * root.workspaceExpansionScale;
+    function workspaceDisplayWidth(workspaceId) {
+        const naturalWidth = root.workspaceNaturalWidth(workspaceId);
+        const rowIndex = root.getWorkspaceRow(workspaceId);
+        return root.workspaceImplicitWidth
+            + (naturalWidth - root.workspaceImplicitWidth) * root.workspaceRowExpansionScale(rowIndex);
     }
 
-    function workspaceXOffset(colIndex) {
-        let offset = 0;
-        for (let index = 0; index < colIndex; index++)
-            offset += root.workspaceColumnWidth(index) + root.scaledWorkspaceSpacing;
+    function workspaceRowWidth(rowIndex) {
+        let width = Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing;
+        for (let colIndex = 0; colIndex < Config.options.overview.columns; colIndex++)
+            width += root.workspaceDisplayWidth(root.getWorkspaceInCell(rowIndex, colIndex));
+        return width;
+    }
+
+    readonly property real normalWorkspaceGridWidth: {
+        let width = root.baseWorkspaceGridWidth;
+        for (let rowIndex = 0; rowIndex < Config.options.overview.rows; rowIndex++) {
+            if (Config.options.overview.hideEmptyRows && root.rowsWithContent && !root.rowsWithContent.has(rowIndex))
+                continue;
+            width = Math.max(width, root.workspaceRowWidth(rowIndex));
+        }
+        return width;
+    }
+
+    function workspaceXOffset(rowIndex, colIndex) {
+        let offset = Math.max(0, (root.normalWorkspaceGridWidth - root.workspaceRowWidth(rowIndex)) / 2);
+        for (let index = 0; index < colIndex; index++) {
+            const workspaceId = root.getWorkspaceInCell(rowIndex, index);
+            offset += root.workspaceDisplayWidth(workspaceId) + root.scaledWorkspaceSpacing;
+        }
         return offset;
     }
 
@@ -414,18 +435,16 @@ Item {
         const geometry = root.scrollingWorkspaceGeometry(workspaceId);
         if (!geometry)
             return 1;
-        const colIndex = root.getWorkspaceColumn(workspaceId);
-        const availableWidth = Math.min(root.workspaceNaturalWidth(workspaceId), root.workspaceColumnWidth(colIndex));
+        const availableWidth = Math.min(root.workspaceNaturalWidth(workspaceId), root.workspaceDisplayWidth(workspaceId));
         return Math.min(1, availableWidth / geometry.width);
     }
 
     function workspaceContentOffsetX(workspaceId) {
         const geometry = root.scrollingWorkspaceGeometry(workspaceId);
-        const colIndex = root.getWorkspaceColumn(workspaceId);
-        const columnWidth = root.workspaceColumnWidth(colIndex);
+        const workspaceWidth = root.workspaceDisplayWidth(workspaceId);
         const scale = root.workspaceHorizontalScale(workspaceId);
         const contentWidth = geometry ? geometry.width * scale : root.workspaceImplicitWidth;
-        const inset = Math.max(0, (columnWidth - contentWidth) / 2);
+        const inset = Math.max(0, (workspaceWidth - contentWidth) / 2);
         return inset - (geometry?.minX ?? 0) * scale;
     }
 
@@ -562,6 +581,7 @@ Item {
                     visible: !Config.options.overview.hideEmptyRows ||
                              (root.rowsWithContent && root.rowsWithContent.has(rowIndex))
                     Layout.preferredHeight: visible ? implicitHeight : 0
+                    Layout.alignment: Qt.AlignHCenter
 
                     Repeater { // Workspace repeater
                         model: Config.options.overview.columns
@@ -576,7 +596,7 @@ Item {
                             property color hoveredBorderColor: root.activeBorderColor
                             property bool hoveredWhileDragging: false
 
-                            implicitWidth: root.workspaceColumnWidth(colIndex)
+                            implicitWidth: root.workspaceDisplayWidth(workspaceValue)
                             implicitHeight: root.workspaceImplicitHeight
                             color: (showWallpaper || (!root.workspaceHasWindows(workspaceValue) && !hoveredWhileDragging))
                                 ? "transparent"
@@ -1186,7 +1206,7 @@ Item {
                     monitorData: monitor
                     widgetMonitorData: root.monitorData
                     scale: root.scale
-                    availableWorkspaceWidth: root.workspaceColumnWidth(workspaceColIndex)
+                    availableWorkspaceWidth: root.workspaceDisplayWidth(windowData?.workspace?.id)
                     availableWorkspaceHeight: root.workspaceImplicitHeight
                     widgetMonitorId: root.monitor.id
                     recaptureToken: root.previewRecaptureToken
@@ -1198,7 +1218,7 @@ Item {
                     geometryScaleX: window.widthRatio * root.workspaceHorizontalScale(windowData?.workspace?.id)
                     positionOffsetX: root.workspaceContentOffsetX(windowData?.workspace?.id)
                     clampPositionX: !root.scrollingWorkspaceGeometry(windowData?.workspace?.id)
-                    xOffset: root.workspaceXOffset(workspaceColIndex)
+                    xOffset: root.workspaceXOffset(workspaceRowIndex, workspaceColIndex)
                     yOffset: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(workspaceRowIndex)
 
                     Timer {
@@ -1320,9 +1340,9 @@ Item {
                     visible: hasWindows &&
                              (!Config.options.overview.hideEmptyRows ||
                               (root.rowsWithContent?.has(rowIndex) ?? true))
-                    x: root.workspaceXOffset(colIndex)
+                    x: root.workspaceXOffset(rowIndex, colIndex)
                     y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(rowIndex)
-                    width: root.workspaceColumnWidth(colIndex)
+                    width: root.workspaceDisplayWidth(workspaceValue)
                     height: root.workspaceImplicitHeight
                     z: root.windowDraggingZ - 1
 
@@ -1384,10 +1404,10 @@ Item {
                 id: focusedWorkspaceIndicator
                 property int activeWorkspaceRowIndex: root.getWorkspaceRow(root.effectiveActiveWorkspaceId)
                 property int activeWorkspaceColIndex: root.getWorkspaceColumn(root.effectiveActiveWorkspaceId)
-                x: root.workspaceXOffset(activeWorkspaceColIndex)
+                x: root.workspaceXOffset(activeWorkspaceRowIndex, activeWorkspaceColIndex)
                 y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(activeWorkspaceRowIndex)
                 z: root.windowDraggingZ - 2
-                width: root.workspaceColumnWidth(activeWorkspaceColIndex)
+                width: root.workspaceDisplayWidth(root.effectiveActiveWorkspaceId)
                 height: root.workspaceImplicitHeight
                 color: root.workspaceCursorFill
                 radius: Style.cornerRadius

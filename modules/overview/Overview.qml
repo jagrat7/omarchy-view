@@ -106,6 +106,13 @@ Scope {
         selectedWindowAddress = candidates.length > 0 ? normalizedAddress(candidates[0].address) : "";
     }
 
+    function selectWorkspaceWindow(workspaceId) {
+        const candidates = windowCandidates();
+        const workspaceWindow = candidates.find(windowData =>
+            Number(windowData?.workspace?.id) === workspaceId);
+        selectedWindowAddress = workspaceWindow ? normalizedAddress(workspaceWindow.address) : "";
+    }
+
     function heldSwitchKeysEmpty() {
         for (const key in heldSwitchKeys)
             return false;
@@ -380,6 +387,14 @@ Scope {
                     if (GlobalStates.overviewOpen) {
                         if (overviewScope.appLibrary) overviewScope.appLibrary.refreshIcons();
                         delayedGrabTimer.start();
+                        // The layer-shell surface can map after its declarative
+                        // focus binding is evaluated. Give it an explicit Qt
+                        // focus target once the window is in the scene so the
+                        // local arrow/number handlers receive key events.
+                        Qt.callLater(function() {
+                            if (GlobalStates.overviewOpen && root.monitorIsFocused)
+                                keyHandler.forceActiveFocus();
+                        });
                     }
                 }
             }
@@ -393,6 +408,10 @@ Scope {
                     // Transfer the grab to the newly focused monitor
                     if (root.monitorIsFocused && !grab.active) {
                         grab.active = true;
+                        Qt.callLater(function() {
+                            if (GlobalStates.overviewOpen && root.monitorIsFocused)
+                                keyHandler.forceActiveFocus();
+                        });
                     } else if (!root.monitorIsFocused && grab.active) {
                         grab.active = false;
                     }
@@ -407,6 +426,8 @@ Scope {
                     if (!grab.canBeActive)
                         return;
                     grab.active = GlobalStates.overviewOpen;
+                    if (grab.active)
+                        keyHandler.forceActiveFocus();
                 }
             }
 
@@ -420,6 +441,8 @@ Scope {
                 visible: GlobalStates.overviewOpen
                 focus: GlobalStates.overviewOpen
                 z: 0
+
+                Keys.priority: Keys.BeforeItem
 
                 Rectangle {
                     id: backdropLayer
@@ -552,6 +575,7 @@ Scope {
 
                     if (targetId !== null) {
                         const clampedTarget = Math.max(minWorkspaceId, Math.min(maxWorkspaceId, targetId));
+			overviewScope.selectWorkspaceWindow(clampedTarget);
 			if (Hyprland.usingLua) {
 				Hyprland.dispatch(`hl.dsp.focus({workspace = '${clampedTarget}'})`);
 			} else {
