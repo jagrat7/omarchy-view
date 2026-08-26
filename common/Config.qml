@@ -162,6 +162,7 @@ Singleton {
             property string emptyWorkspaceWallpaper: ""
             property string specialEmptyWorkspaceWallpaper: ""
             property real workspaceSpacing: root.readReal("overview.workspaceSpacing", 5)
+            property real scrollingWorkspaceMaxWidthMultiplier: Math.max(1, root.readReal("overview.scrollingWorkspaceMaxWidthMultiplier", 1.75))
             property real backgroundPadding: root.readReal("overview.backgroundPadding", 10)
             property real workspaceNumberBaseSize: root.readReal("overview.workspaceNumberBaseSize", 250)
             property QtObject effects: QtObject {

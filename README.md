@@ -118,6 +118,7 @@ Settings are read inline from `~/.config/omarchy/shell.json` inside the `plugins
 ## Features & Omarchy Integration
 
 - **Live Window Previews**: Renders real-time Hyprland window thumbnails across workspaces.
+- **Scrolling Layout Support**: Expands scrolling workspaces horizontally to reveal off-screen tape windows, with a bounded maximum width.
 - **Keyboard Window Switching**: Cycles through app windows with `Tab` / `Shift+Tab`, with commit-on-modifier-release behavior.
 - **Dynamic App Icon Resolution**: Resolves standard GUI apps, webapps/PWAs (Chrome/Brave/Edge), and terminal TUI apps (Yazi, Neovim, btop, ranger) matching `omarchy.menu`.
 - **Theme Integration**: Follows active Omarchy shell theme tokens (`qs.Commons.Color` & `qs.Commons.Style`).

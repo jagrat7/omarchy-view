@@ -17,6 +17,8 @@ Item { // Window
     property var availableWorkspaceHeight
     property real positionBaseX: (monitorData?.x ?? 0) + (monitorData?.reserved?.[0] ?? 0)
     property real positionBaseY: (monitorData?.y ?? 0) + (monitorData?.reserved?.[1] ?? 0)
+    property real positionOffsetX: 0
+    property bool clampPositionX: true
     property int recaptureToken: 0
     property bool restrictToWorkspace: true
     property real widthRatio: {
@@ -39,7 +41,10 @@ Item { // Window
         const widgetScale = widgetMonitorData.scale ?? 1;
         return (widgetHeight * sourceScale) / (sourceHeight * widgetScale);
     }
-    property real initX: Math.max(((windowData?.at[0] ?? 0) - positionBaseX) * root.scale * geometryScaleX, 0) + xOffset
+    property real initX: {
+        const mappedX = ((windowData?.at[0] ?? 0) - positionBaseX) * root.scale * geometryScaleX;
+        return (root.clampPositionX ? Math.max(mappedX, 0) : mappedX) + positionOffsetX + xOffset;
+    }
     property real initY: Math.max(((windowData?.at[1] ?? 0) - positionBaseY) * root.scale * geometryScaleY, 0) + yOffset
     property real xOffset: 0
     property real yOffset: 0

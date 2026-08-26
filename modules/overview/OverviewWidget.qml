@@ -44,13 +44,14 @@ Item {
 
     property real workspaceNumberMargin: 80
     property real workspaceNumberSize: Config.options.overview.workspaceNumberBaseSize * monitor.scale
-    property int workspaceBorderThickness: Math.max(1, Style.normalBorderWidth)
+    property int workspaceBorderThickness: Math.max(2, Style.normalBorderWidth + 1)
     property int workspaceLabelSize: Math.max(10, Math.round(root.workspaceImplicitHeight * 0.09))
     property int workspaceZ: 0
     property int windowZ: 1
     property int windowDraggingZ: 99999
     property real workspaceSpacing: Config.options.overview.workspaceSpacing
     property real scaledWorkspaceSpacing: Style.spaceReal(workspaceSpacing)
+    readonly property real scrollingWorkspaceMaxWidth: root.workspaceImplicitWidth * Config.options.overview.scrollingWorkspaceMaxWidthMultiplier
     property string emptyWorkspaceWallpaperPath: Config.options.overview.emptyWorkspaceWallpaper
     property string specialEmptyWorkspaceWallpaperPath: Config.options.overview.specialEmptyWorkspaceWallpaper
     property bool showSpecialWorkspaces: Config.options.overview.showSpecialWorkspaces
@@ -289,6 +290,145 @@ Item {
         return false;
     }
 
+    function widthRatioForMonitor(sourceMonitorData) {
+        if (!root.monitorData || !sourceMonitorData)
+            return 1;
+
+        const widgetWidth = (root.monitorData.transform % 2 === 1) ? (root.monitorData.height ?? 1) : (root.monitorData.width ?? 1);
+        const sourceWidth = (sourceMonitorData.transform % 2 === 1) ? (sourceMonitorData.height ?? 1) : (sourceMonitorData.width ?? 1);
+        const sourceScale = sourceMonitorData.scale ?? 1;
+        const widgetScale = root.monitorData.scale ?? 1;
+        return (widgetWidth * sourceScale) / (sourceWidth * widgetScale);
+    }
+
+    readonly property var scrollingWorkspaceGeometryById: {
+        const scrollingWorkspaceIds = new Set();
+        const geometries = {};
+
+        for (const addr in windowByAddress) {
+            const win = windowByAddress[addr];
+            if (root.isSpecialWorkspace(win) || win?.mapped === false || win?.hidden === true)
+                continue;
+
+            const sourceMonitorData = HyprlandData.monitors.find(candidate => candidate.id === win?.monitor);
+            const atX = win?.at?.[0];
+            const width = win?.size?.[0];
+            const positionBaseX = (sourceMonitorData?.x ?? 0) + (sourceMonitorData?.reserved?.[0] ?? 0);
+            const geometryScaleX = root.scale * root.widthRatioForMonitor(sourceMonitorData);
+            const mappedX = (atX - positionBaseX) * geometryScaleX;
+            const mappedRight = mappedX + width * geometryScaleX;
+            const usesScrollingHandler = `${win?.fullscreenHandler ?? ""}`.trim().toLowerCase() === "scrolling";
+            const tiledOutsideViewport = !win?.floating
+                && Number.isFinite(mappedX)
+                && Number.isFinite(mappedRight)
+                && (mappedX < 0 || mappedRight > root.workspaceImplicitWidth);
+            if (usesScrollingHandler || tiledOutsideViewport)
+                scrollingWorkspaceIds.add(win?.workspace?.id);
+        }
+
+        for (const addr in windowByAddress) {
+            const win = windowByAddress[addr];
+            const workspaceId = win?.workspace?.id;
+            if (!scrollingWorkspaceIds.has(workspaceId) || win?.mapped === false || win?.hidden === true)
+                continue;
+
+            const sourceMonitorData = HyprlandData.monitors.find(candidate => candidate.id === win?.monitor);
+            const atX = win?.at?.[0];
+            const width = win?.size?.[0];
+            if (!sourceMonitorData || !Number.isFinite(atX) || !Number.isFinite(width))
+                continue;
+
+            const positionBaseX = (sourceMonitorData.x ?? 0) + (sourceMonitorData.reserved?.[0] ?? 0);
+            const geometryScaleX = root.scale * root.widthRatioForMonitor(sourceMonitorData);
+            const mappedX = (atX - positionBaseX) * geometryScaleX;
+            const mappedRight = mappedX + width * geometryScaleX;
+            const current = geometries[workspaceId] ?? {
+                minX: 0,
+                maxX: root.workspaceImplicitWidth
+            };
+            current.minX = Math.min(current.minX, mappedX);
+            current.maxX = Math.max(current.maxX, mappedRight);
+            geometries[workspaceId] = current;
+        }
+
+        for (const workspaceId in geometries)
+            geometries[workspaceId].width = Math.max(1, geometries[workspaceId].maxX - geometries[workspaceId].minX);
+
+        return geometries;
+    }
+
+    function scrollingWorkspaceGeometry(workspaceId) {
+        return root.scrollingWorkspaceGeometryById[workspaceId] ?? null;
+    }
+
+    function workspaceNaturalWidth(workspaceId) {
+        const geometry = root.scrollingWorkspaceGeometry(workspaceId);
+        if (!geometry)
+            return root.workspaceImplicitWidth;
+        return Math.min(root.scrollingWorkspaceMaxWidth, Math.max(root.workspaceImplicitWidth, geometry.width));
+    }
+
+    readonly property var desiredWorkspaceColumnWidths: {
+        const widths = Array(Config.options.overview.columns).fill(root.workspaceImplicitWidth);
+        for (let rowIndex = 0; rowIndex < Config.options.overview.rows; rowIndex++) {
+            if (Config.options.overview.hideEmptyRows && root.rowsWithContent && !root.rowsWithContent.has(rowIndex))
+                continue;
+            for (let colIndex = 0; colIndex < Config.options.overview.columns; colIndex++) {
+                const workspaceId = root.getWorkspaceInCell(rowIndex, colIndex);
+                widths[colIndex] = Math.max(widths[colIndex], root.workspaceNaturalWidth(workspaceId));
+            }
+        }
+        return widths;
+    }
+
+    readonly property real baseWorkspaceGridWidth: Config.options.overview.columns * root.workspaceImplicitWidth
+        + Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing
+    readonly property real desiredWorkspaceGridWidth: root.desiredWorkspaceColumnWidths.reduce((sum, width) => sum + width, 0)
+        + Math.max(0, Config.options.overview.columns - 1) * root.scaledWorkspaceSpacing
+    readonly property real maxWorkspaceGridWidth: {
+        const panelWidth = root.panelWindow?.width ?? root.baseWorkspaceGridWidth;
+        const outerMargins = Appearance.sizes.elevationMargin * 2 + Style.spaceReal(Config.options.overview.backgroundPadding) * 2;
+        return Math.max(root.baseWorkspaceGridWidth, panelWidth - outerMargins);
+    }
+    readonly property real workspaceExpansionScale: {
+        const desiredExpansion = root.desiredWorkspaceGridWidth - root.baseWorkspaceGridWidth;
+        if (desiredExpansion <= 0)
+            return 1;
+        const availableExpansion = Math.max(0, root.maxWorkspaceGridWidth - root.baseWorkspaceGridWidth);
+        return Math.min(1, availableExpansion / desiredExpansion);
+    }
+
+    function workspaceColumnWidth(colIndex) {
+        const desiredWidth = root.desiredWorkspaceColumnWidths[colIndex] ?? root.workspaceImplicitWidth;
+        return root.workspaceImplicitWidth + (desiredWidth - root.workspaceImplicitWidth) * root.workspaceExpansionScale;
+    }
+
+    function workspaceXOffset(colIndex) {
+        let offset = 0;
+        for (let index = 0; index < colIndex; index++)
+            offset += root.workspaceColumnWidth(index) + root.scaledWorkspaceSpacing;
+        return offset;
+    }
+
+    function workspaceHorizontalScale(workspaceId) {
+        const geometry = root.scrollingWorkspaceGeometry(workspaceId);
+        if (!geometry)
+            return 1;
+        const colIndex = root.getWorkspaceColumn(workspaceId);
+        const availableWidth = Math.min(root.workspaceNaturalWidth(workspaceId), root.workspaceColumnWidth(colIndex));
+        return Math.min(1, availableWidth / geometry.width);
+    }
+
+    function workspaceContentOffsetX(workspaceId) {
+        const geometry = root.scrollingWorkspaceGeometry(workspaceId);
+        const colIndex = root.getWorkspaceColumn(workspaceId);
+        const columnWidth = root.workspaceColumnWidth(colIndex);
+        const scale = root.workspaceHorizontalScale(workspaceId);
+        const contentWidth = geometry ? geometry.width * scale : root.workspaceImplicitWidth;
+        const inset = Math.max(0, (columnWidth - contentWidth) / 2);
+        return inset - (geometry?.minX ?? 0) * scale;
+    }
+
     function specialWindowZ(win) {
         const pinned = win?.pinned ? 200000 : 0;
         const floating = win?.floating ? 100000 : 0;
@@ -436,7 +576,7 @@ Item {
                             property color hoveredBorderColor: root.activeBorderColor
                             property bool hoveredWhileDragging: false
 
-                            implicitWidth: root.workspaceImplicitWidth
+                            implicitWidth: root.workspaceColumnWidth(colIndex)
                             implicitHeight: root.workspaceImplicitHeight
                             color: (showWallpaper || (!root.workspaceHasWindows(workspaceValue) && !hoveredWhileDragging))
                                 ? "transparent"
@@ -1046,7 +1186,7 @@ Item {
                     monitorData: monitor
                     widgetMonitorData: root.monitorData
                     scale: root.scale
-                    availableWorkspaceWidth: root.workspaceImplicitWidth
+                    availableWorkspaceWidth: root.workspaceColumnWidth(workspaceColIndex)
                     availableWorkspaceHeight: root.workspaceImplicitHeight
                     widgetMonitorId: root.monitor.id
                     recaptureToken: root.previewRecaptureToken
@@ -1055,7 +1195,10 @@ Item {
 
                     property int workspaceColIndex: root.getWorkspaceColumn(windowData?.workspace.id)
                     property int workspaceRowIndex: root.getWorkspaceRow(windowData?.workspace.id)
-                    xOffset: (root.workspaceImplicitWidth + root.scaledWorkspaceSpacing) * workspaceColIndex
+                    geometryScaleX: window.widthRatio * root.workspaceHorizontalScale(windowData?.workspace?.id)
+                    positionOffsetX: root.workspaceContentOffsetX(windowData?.workspace?.id)
+                    clampPositionX: !root.scrollingWorkspaceGeometry(windowData?.workspace?.id)
+                    xOffset: root.workspaceXOffset(workspaceColIndex)
                     yOffset: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(workspaceRowIndex)
 
                     Timer {
@@ -1064,8 +1207,8 @@ Item {
                         repeat: false
                         running: false
                         onTriggered: {
-                            window.x = Math.round(Math.max((windowData?.at[0] - (monitor?.x ?? 0) - (monitorData?.reserved?.[0] ?? 0)) * root.scale * window.widthRatio, 0) + xOffset)
-                            window.y = Math.round(Math.max((windowData?.at[1] - (monitor?.y ?? 0) - (monitorData?.reserved?.[1] ?? 0)) * root.scale * window.heightRatio, 0) + yOffset)
+                            window.x = Math.round(window.initX)
+                            window.y = Math.round(window.initY)
                         }
                     }
 
@@ -1177,9 +1320,9 @@ Item {
                     visible: hasWindows &&
                              (!Config.options.overview.hideEmptyRows ||
                               (root.rowsWithContent?.has(rowIndex) ?? true))
-                    x: (root.workspaceImplicitWidth + root.scaledWorkspaceSpacing) * colIndex
+                    x: root.workspaceXOffset(colIndex)
                     y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(rowIndex)
-                    width: root.workspaceImplicitWidth
+                    width: root.workspaceColumnWidth(colIndex)
                     height: root.workspaceImplicitHeight
                     z: root.windowDraggingZ - 1
 
@@ -1241,10 +1384,10 @@ Item {
                 id: focusedWorkspaceIndicator
                 property int activeWorkspaceRowIndex: root.getWorkspaceRow(root.effectiveActiveWorkspaceId)
                 property int activeWorkspaceColIndex: root.getWorkspaceColumn(root.effectiveActiveWorkspaceId)
-                x: (root.workspaceImplicitWidth + root.scaledWorkspaceSpacing) * activeWorkspaceColIndex
+                x: root.workspaceXOffset(activeWorkspaceColIndex)
                 y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(activeWorkspaceRowIndex)
                 z: root.windowDraggingZ - 2
-                width: root.workspaceImplicitWidth
+                width: root.workspaceColumnWidth(activeWorkspaceColIndex)
                 height: root.workspaceImplicitHeight
                 color: root.workspaceCursorFill
                 radius: Style.cornerRadius
