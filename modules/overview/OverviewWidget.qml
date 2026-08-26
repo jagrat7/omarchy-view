@@ -44,6 +44,8 @@ Item {
 
     property real workspaceNumberMargin: 80
     property real workspaceNumberSize: Config.options.overview.workspaceNumberBaseSize * monitor.scale
+    property color workspaceOccupiedFill: ColorUtils.applyAlpha(Color.launcher.selectedText, 0.055)
+    property int workspaceLabelSize: Math.max(10, Math.round(root.workspaceImplicitHeight * 0.09))
     property int workspaceZ: 0
     property int windowZ: 1
     property int windowDraggingZ: 99999
@@ -433,12 +435,13 @@ Item {
                             property color hoveredWorkspaceColor: root.workspaceHoverFill
                             property color hoveredBorderColor: root.activeBorderColor
                             property bool hoveredWhileDragging: false
+                            property color stateFill: hoveredWhileDragging
+                                ? hoveredWorkspaceColor
+                                : (hasWindows ? root.workspaceOccupiedFill : defaultWorkspaceColor)
 
                             implicitWidth: root.workspaceImplicitWidth
                             implicitHeight: root.workspaceImplicitHeight
-                            color: (showWallpaper || (!root.workspaceHasWindows(workspaceValue) && !hoveredWhileDragging))
-                                ? "transparent"
-                                : (hoveredWhileDragging ? hoveredWorkspaceColor : defaultWorkspaceColor)
+                            color: showWallpaper ? "transparent" : stateFill
                             radius: Style.cornerRadius
                             border.width: hoveredWhileDragging ? Math.max(1, Style.space(1)) : 0
                             border.color: hoveredWhileDragging
@@ -485,13 +488,15 @@ Item {
                                     workspace.hoveredWhileDragging ? workspace.hoveredWorkspaceColor : workspace.defaultWorkspaceColor,
                                     workspace.hoveredWhileDragging
                                         ? Math.min(0.20, root.emptyWorkspaceWallpaperOverlayOpacity + 0.06)
-                                        : root.emptyWorkspaceWallpaperOverlayOpacity
+                                        : (workspace.hasWindows
+                                            ? Math.max(0, root.emptyWorkspaceWallpaperOverlayOpacity - 0.08)
+                                            : root.emptyWorkspaceWallpaperOverlayOpacity)
                                 )
                             }
 
                             StyledText {
                                 anchors.centerIn: parent
-                                visible: !workspace.showWallpaper
+                                visible: !workspace.showWallpaper && !workspace.hasWindows
                                 text: workspaceValue
                                 font {
                                     pixelSize: root.workspaceNumberSize * root.scale
@@ -1156,6 +1161,45 @@ Item {
                             alternativeVisibleCondition: dragArea.containsMouse && !window.Drag.active
                             text: `${windowData?.title ?? "Unknown"}\n[${windowData?.class ?? "unknown"}] ${windowData?.xwayland ? "[XWayland] " : ""}`
                         }
+                    }
+                }
+            }
+
+            Repeater { // Workspace labels
+                model: root.workspacesShown
+                delegate: Item {
+                    id: workspaceLabel
+                    required property int index
+                    readonly property int rowIndex: Math.floor(index / Config.options.overview.columns)
+                    readonly property int colIndex: index % Config.options.overview.columns
+                    readonly property int workspaceValue: root.getWorkspaceInCell(rowIndex, colIndex)
+                    readonly property bool isActive: workspaceValue === root.effectiveActiveWorkspaceId
+                    readonly property bool hasWindows: root.workspaceHasWindows(workspaceValue)
+
+                    // Empty workspaces already show the large centred number.
+                    visible: hasWindows &&
+                             (!Config.options.overview.hideEmptyRows ||
+                              (root.rowsWithContent?.has(rowIndex) ?? true))
+                    x: (root.workspaceImplicitWidth + root.scaledWorkspaceSpacing) * colIndex
+                    y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(rowIndex)
+                    width: root.workspaceImplicitWidth
+                    height: root.workspaceImplicitHeight
+                    z: root.windowDraggingZ - 1
+
+                    StyledText {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        text: workspaceLabel.workspaceValue
+                        font {
+                            pixelSize: root.workspaceLabelSize
+                            weight: workspaceLabel.isActive ? Font.Bold : Font.DemiBold
+                            family: Style.font.family
+                        }
+                        color: workspaceLabel.isActive
+                            ? Color.launcher.selectedText
+                            : ColorUtils.applyAlpha(Color.launcher.text, 0.75)
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignBottom
                     }
                 }
             }
