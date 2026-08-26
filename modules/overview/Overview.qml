@@ -17,6 +17,12 @@ Scope {
     property var manifest: null
     property var settings: ({})
     property bool opened: GlobalStates.overviewOpen
+    property string selectedWindowAddress: ""
+    property bool windowSwitching: false
+    property var heldSwitchKeys: ({})
+    property bool sawSwitchKeyEvent: false
+    property bool switchModifiersHeld: false
+    property string pendingWindowAddress: ""
 
     // Read a single value from this plugin's inline shell.json entry, with a
     // fallback for missing/null values. Matches Omarchy Panel.setting().
@@ -45,8 +51,173 @@ Scope {
         Config.settings = next;
     }
 
+    function normalizedAddress(address) {
+        const value = `${address ?? ""}`.trim();
+        if (value.length === 0)
+            return "";
+        return value.startsWith("0x") ? value : `0x${value}`;
+    }
+
+    function windowCandidates() {
+        const workspacesPerGroup = Config.options.overview.rows * Config.options.overview.columns;
+        const currentId = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 1;
+        const useWorkspaceMap = Config.options.overview.useWorkspaceMap;
+        const workspaceMap = Config.options.overview.workspaceMap ?? [];
+        const focusedMonitorId = Hyprland.focusedMonitor?.id ?? 0;
+        const workspaceOffset = useWorkspaceMap ? Number(workspaceMap[focusedMonitorId] ?? 0) : 0;
+        const currentGroup = Math.floor((currentId - workspaceOffset - 1) / workspacesPerGroup);
+        const minWorkspaceId = currentGroup * workspacesPerGroup + 1 + workspaceOffset;
+        const maxWorkspaceId = minWorkspaceId + workspacesPerGroup - 1;
+
+        const renderedAddresses = new Set();
+        for (const toplevel of (ToplevelManager.toplevels.values ?? []))
+            renderedAddresses.add(normalizedAddress(toplevel?.HyprlandToplevel?.address));
+
+        return (HyprlandData.windowList ?? []).filter(windowData => {
+            const address = normalizedAddress(windowData?.address);
+            if (address.length === 0 || !renderedAddresses.has(address))
+                return false;
+            if (windowData?.mapped === false || windowData?.hidden === true)
+                return false;
+
+            const workspaceName = `${windowData?.workspace?.name ?? ""}`;
+            if (workspaceName.startsWith("special:")) {
+                return Config.options.overview.showSpecialWorkspaces
+                    && (windowData?.monitor ?? -1) === focusedMonitorId;
+            }
+
+            const workspaceId = Number(windowData?.workspace?.id);
+            return Number.isFinite(workspaceId)
+                && workspaceId >= minWorkspaceId
+                && workspaceId <= maxWorkspaceId;
+        }).sort((left, right) => {
+            const leftHistory = Number(left?.focusHistoryID);
+            const rightHistory = Number(right?.focusHistoryID);
+            const leftRank = Number.isFinite(leftHistory) && leftHistory >= 0 ? leftHistory : Number.MAX_SAFE_INTEGER;
+            const rightRank = Number.isFinite(rightHistory) && rightHistory >= 0 ? rightHistory : Number.MAX_SAFE_INTEGER;
+            if (leftRank !== rightRank)
+                return leftRank - rightRank;
+            return normalizedAddress(left?.address).localeCompare(normalizedAddress(right?.address));
+        });
+    }
+
+    function selectCurrentWindow() {
+        const candidates = windowCandidates();
+        selectedWindowAddress = candidates.length > 0 ? normalizedAddress(candidates[0].address) : "";
+    }
+
+    function heldSwitchKeysEmpty() {
+        for (const key in heldSwitchKeys)
+            return false;
+        return true;
+    }
+
+    function resetSwitchKeyState() {
+        heldSwitchKeys = ({});
+        sawSwitchKeyEvent = false;
+        switchModifiersHeld = false;
+    }
+
+    function setSwitchKeyHeld(key, held) {
+        const next = Object.assign({}, heldSwitchKeys);
+        if (held)
+            next[key] = true;
+        else
+            delete next[key];
+        heldSwitchKeys = next;
+    }
+
+    function noteSwitchKeyPressed(event) {
+        sawSwitchKeyEvent = true;
+        switchModifiersHeld = !!(event.modifiers
+            & (Qt.AltModifier | Qt.MetaModifier | Qt.ControlModifier));
+        setSwitchKeyHeld(event.key, true);
+    }
+
+    function noteSwitchKeyReleased(event) {
+        sawSwitchKeyEvent = true;
+        setSwitchKeyHeld(event.key, false);
+
+        // Qt may still report the modifier that is currently being released.
+        const altReleasing = event.key === Qt.Key_Alt;
+        const superReleasing = event.key === Qt.Key_Meta
+            || event.key === Qt.Key_Super_L
+            || event.key === Qt.Key_Super_R;
+        const controlReleasing = event.key === Qt.Key_Control;
+        const altHeld = (event.modifiers & Qt.AltModifier) && !altReleasing;
+        const superHeld = (event.modifiers & Qt.MetaModifier) && !superReleasing;
+        const controlHeld = (event.modifiers & Qt.ControlModifier) && !controlReleasing;
+        switchModifiersHeld = !!(altHeld || superHeld || controlHeld);
+    }
+
+    function cycleWindow(delta) {
+        const candidates = windowCandidates();
+        if (candidates.length === 0) {
+            selectedWindowAddress = "";
+            return;
+        }
+
+        const step = delta < 0 ? -1 : 1;
+        let currentIndex = candidates.findIndex(windowData =>
+            normalizedAddress(windowData?.address) === selectedWindowAddress);
+        if (currentIndex < 0)
+            currentIndex = step > 0 ? -1 : 0;
+
+        const nextIndex = (currentIndex + step + candidates.length) % candidates.length;
+        selectedWindowAddress = normalizedAddress(candidates[nextIndex].address);
+    }
+
+    function startWindowSwitch(delta) {
+        selectedWindowFocusTimer.stop();
+        pendingWindowAddress = "";
+        resetSwitchKeyState();
+        windowSwitching = true;
+        selectCurrentWindow();
+        cycleWindow(delta);
+        GlobalStates.overviewOpen = true;
+        modifierFallbackTimer.restart();
+    }
+
+    function advanceWindowSwitch(delta) {
+        if (GlobalStates.overviewOpen) {
+            // If the compositor shortcut refires, its modifier is still held.
+            windowSwitching = true;
+            sawSwitchKeyEvent = true;
+            switchModifiersHeld = true;
+            cycleWindow(delta);
+        } else {
+            startWindowSwitch(delta);
+        }
+    }
+
+    function activateSelectedWindow() {
+        const address = selectedWindowAddress;
+        const windowData = HyprlandData.windowByAddress[address];
+        modifierFallbackTimer.stop();
+        GlobalStates.overviewOpen = false;
+
+        if (!windowData)
+            return;
+        pendingWindowAddress = address;
+        selectedWindowFocusTimer.restart();
+    }
+
+    function cancelWindowSwitch() {
+        modifierFallbackTimer.stop();
+        selectedWindowFocusTimer.stop();
+        pendingWindowAddress = "";
+        GlobalStates.overviewOpen = false;
+    }
+
     onManifestChanged: syncSettings()
     onShellChanged: syncSettings()
+    onOpenedChanged: {
+        if (!opened) {
+            selectedWindowAddress = "";
+            windowSwitching = false;
+            resetSwitchKeyState();
+        }
+    }
     Component.onCompleted: syncSettings()
 
     Connections {
@@ -57,16 +228,112 @@ Scope {
         }
     }
 
+    Connections {
+        target: HyprlandData
+        function onWindowListChanged() {
+            if (!GlobalStates.overviewOpen)
+                return;
+
+            const candidates = overviewScope.windowCandidates();
+            const selectionStillExists = candidates.some(windowData =>
+                overviewScope.normalizedAddress(windowData?.address) === overviewScope.selectedWindowAddress);
+            if (selectionStillExists)
+                return;
+
+            overviewScope.selectCurrentWindow();
+            if (overviewScope.windowSwitching)
+                overviewScope.cycleWindow(1);
+        }
+    }
+
     function open(payloadJson) {
+        modifierFallbackTimer.stop();
+        selectedWindowFocusTimer.stop();
+        pendingWindowAddress = "";
+        resetSwitchKeyState();
+        windowSwitching = false;
+        selectCurrentWindow();
         GlobalStates.overviewOpen = true;
     }
 
     function close() {
-        GlobalStates.overviewOpen = false;
+        cancelWindowSwitch();
     }
 
     function toggle(payloadJson) {
-        GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+        advanceWindowSwitch(1);
+    }
+
+    Timer {
+        id: modifierFallbackTimer
+        interval: 150
+        repeat: true
+        onTriggered: {
+            if (!GlobalStates.overviewOpen || !overviewScope.windowSwitching) {
+                stop();
+                return;
+            }
+
+            // Qt can omit the still-held compositor modifier from a Tab
+            // release event. Never commit from event.modifiers alone: ask
+            // Hyprland for the physical key state whenever no ordinary key
+            // is currently held.
+            if (!overviewScope.heldSwitchKeysEmpty())
+                return;
+
+            if (!modifierStateCheck.running)
+                modifierStateCheck.running = true;
+        }
+    }
+
+    Process {
+        id: modifierStateCheck
+        command: [
+            "hyprctl", "eval",
+            "error(tostring(hl.is_key_down(\"Alt_L\") or hl.is_key_down(\"Alt_R\") or hl.is_key_down(\"Super_L\") or hl.is_key_down(\"Super_R\") or hl.is_key_down(\"Control_L\") or hl.is_key_down(\"Control_R\")))"
+        ]
+        stdout: StdioCollector {
+            id: modifierStateCollector
+            onStreamFinished: {
+                if (!GlobalStates.overviewOpen
+                        || !overviewScope.windowSwitching
+                        || !overviewScope.heldSwitchKeysEmpty())
+                    return;
+
+                if (!modifierStateCollector.text.trim().endsWith("true"))
+                    overviewScope.activateSelectedWindow();
+            }
+        }
+    }
+
+    Timer {
+        id: selectedWindowFocusTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            const address = overviewScope.pendingWindowAddress;
+            overviewScope.pendingWindowAddress = "";
+            if (address.length === 0)
+                return;
+
+            if (Hyprland.usingLua) {
+                Hyprland.dispatch(`hl.dsp.focus({ window = 'address:${address}' })`);
+            } else {
+                Hyprland.dispatch(`focuswindow address:${address}`);
+            }
+        }
+    }
+
+    GlobalShortcut {
+        appid: "omarchy-overview"
+        name: "next"
+        onPressed: overviewScope.advanceWindowSwitch(1)
+    }
+
+    GlobalShortcut {
+        appid: "omarchy-overview"
+        name: "previous"
+        onPressed: overviewScope.advanceWindowSwitch(-1)
     }
 
     Variants {
@@ -176,9 +443,32 @@ Scope {
                 }
 
                 Keys.onPressed: event => {
-                    // close: Escape or Enter
-                    if (event.key === Qt.Key_Escape || event.key === Qt.Key_Return) {
-                        GlobalStates.overviewOpen = false;
+                    if (event.key === Qt.Key_Escape) {
+                        overviewScope.cancelWindowSwitch();
+                        event.accepted = true;
+                        return;
+                    }
+
+                    const tabPressed = event.key === Qt.Key_Tab
+                        || event.key === Qt.Key_Backtab;
+                    if (tabPressed && !overviewScope.windowSwitching) {
+                        overviewScope.resetSwitchKeyState();
+                        overviewScope.windowSwitching = true;
+                        modifierFallbackTimer.restart();
+                    }
+                    if (overviewScope.windowSwitching)
+                        overviewScope.noteSwitchKeyPressed(event);
+
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        overviewScope.activateSelectedWindow();
+                        event.accepted = true;
+                        return;
+                    }
+
+                    if (tabPressed) {
+                        const reverse = event.key === Qt.Key_Backtab
+                            || (event.modifiers & Qt.ShiftModifier) !== 0;
+                        overviewScope.cycleWindow(reverse ? -1 : 1);
                         event.accepted = true;
                         return;
                     }
@@ -270,6 +560,16 @@ Scope {
                         event.accepted = true;
                     }
                 }
+
+                Keys.onReleased: event => {
+                    if (!overviewScope.windowSwitching)
+                        return;
+
+                    overviewScope.noteSwitchKeyReleased(event);
+                    // modifierFallbackTimer verifies the real physical
+                    // modifier state before committing the selection.
+                    event.accepted = true;
+                }
             }
 
             ColumnLayout {
@@ -288,6 +588,7 @@ Scope {
                     sourceComponent: OverviewWidget {
                         panelWindow: root
                         shell: overviewScope.shell
+                        selectedWindowAddress: overviewScope.selectedWindowAddress
                         visible: true
                     }
                 }
@@ -308,6 +609,18 @@ Scope {
         }
         function open(): string {
             overviewScope.open("");
+            return "ok";
+        }
+        function next(): string {
+            overviewScope.advanceWindowSwitch(1);
+            return "ok";
+        }
+        function previous(): string {
+            overviewScope.advanceWindowSwitch(-1);
+            return "ok";
+        }
+        function commit(): string {
+            overviewScope.activateSelectedWindow();
             return "ok";
         }
         function state(): string {

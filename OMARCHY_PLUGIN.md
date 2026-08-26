@@ -15,17 +15,24 @@ omarchy plugin rescan
 omarchy plugin enable omarchy-overview
 ```
 
-Toggle it with:
+Open it directly with:
 
 ```bash
-omarchy-shell shell toggle omarchy-overview
+omarchy-shell overview open
 ```
 
-For a Hyprland keybind, use:
+For a Hyprland Lua keybind, use:
 
-```conf
-bind = SUPER, TAB, exec, omarchy-shell shell toggle omarchy-overview
+```lua
+hl.unbind("ALT + TAB")
+o.bind("ALT + TAB", "Overview", hl.dsp.global("omarchy-overview:next"), { repeating = true })
 ```
+
+Hold `Alt` to keep the overview open and press `Tab` repeatedly to cycle
+through windows in most-recently-used order. Releasing `Alt` focuses the
+highlighted window; `Shift+Tab` moves backward, `Enter` confirms, and `Escape`
+cancels. The same global shortcut can be bound to `SUPER + TAB` or another
+supported modifier combination.
 
 Settings are read inline from `~/.config/omarchy/shell.json`, inside the
 `plugins` entry for `omarchy-overview`:

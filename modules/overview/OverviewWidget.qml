@@ -27,6 +27,7 @@ Item {
     property var windows: HyprlandData.windowList
     property var windowByAddress: HyprlandData.windowByAddress
     property var windowAddresses: HyprlandData.addresses
+    property string selectedWindowAddress: ""
     property var workspaceIds: HyprlandData.workspaceIds
     property var monitorData: HyprlandData.monitors.find(m => m.id === root.monitor?.id)
     property real scale: Config.options.overview.scale
@@ -736,6 +737,7 @@ Item {
                                             property Item homeParent: specialWorkspaceContent
                                             appLibrary: root.appLibrary
                                             windowData: windowByAddress[address]
+                                            selected: address === root.selectedWindowAddress
                                             toplevel: modelData
                                             monitorData: monitor
                                             widgetMonitorData: root.monitorData
@@ -1037,6 +1039,7 @@ Item {
                     property var address: `0x${modelData.HyprlandToplevel.address}`
                     appLibrary: root.appLibrary
                     windowData: windowByAddress[address]
+                    selected: address === root.selectedWindowAddress
                     toplevel: modelData
                     monitorData: monitor
                     widgetMonitorData: root.monitorData
@@ -1064,7 +1067,9 @@ Item {
                         }
                     }
 
-                    z: atInitPosition ? (root.windowZ + index) : root.windowDraggingZ
+                    z: !atInitPosition
+                        ? root.windowDraggingZ
+                        : (selected ? root.windowDraggingZ - 1 : root.windowZ + index)
                     Drag.hotSpot.x: targetWindowWidth / 2
                     Drag.hotSpot.y: targetWindowHeight / 2
                     MouseArea {
@@ -1161,7 +1166,7 @@ Item {
                 property int activeWorkspaceColIndex: root.getWorkspaceColumn(root.effectiveActiveWorkspaceId)
                 x: (root.workspaceImplicitWidth + root.scaledWorkspaceSpacing) * activeWorkspaceColIndex
                 y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(activeWorkspaceRowIndex)
-                z: root.windowDraggingZ - 1
+                z: root.windowDraggingZ - 2
                 width: root.workspaceImplicitWidth
                 height: root.workspaceImplicitHeight
                 color: root.workspaceCursorFill

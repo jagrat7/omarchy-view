@@ -51,6 +51,7 @@ Item { // Window
     property var targetWindowHeight: (windowData?.size[1] ?? 100) * scale * geometryScaleY
     property bool hovered: false
     property bool pressed: false
+    property bool selected: false
 
     property var appLibrary: null
     property bool showIcons: Config.options.windowPreview.showIcons
@@ -331,11 +332,13 @@ Item { // Window
     Rectangle {
         anchors.fill: parent
         radius: Style.cornerRadius
-        color: pressed ? ColorUtils.applyAlpha(Style.pressedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
-            hovered ? ColorUtils.applyAlpha(Style.hoverFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.20)) :
+        color: root.selected ? ColorUtils.applyAlpha(Style.selectedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
+            root.pressed ? ColorUtils.applyAlpha(Style.pressedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
+            root.hovered ? ColorUtils.applyAlpha(Style.hoverFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.20)) :
             ColorUtils.applyAlpha(Color.popups.background, root.effectiveWindowOverlayOpacity)
-        border.color: hovered || pressed ? Style.hoverBorderColor : Style.normalBorderColor
-        border.width: Style.normalBorderWidth
+        border.color: root.selected ? Style.selectedBorderColor :
+            (root.hovered || root.pressed ? Style.hoverBorderColor : Style.normalBorderColor)
+        border.width: root.selected ? Math.max(2, Style.selectedBorderWidth) : Style.normalBorderWidth
 
         Image {
             id: windowIcon

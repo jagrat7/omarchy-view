@@ -115,7 +115,12 @@ Singleton {
                 return;
             }
 
-            if (eventName === "workspace" || eventName === "workspacev2" || eventName === "focusedmon" || eventName === "focusedmonv2" || eventName === "activewindow" || eventName === "activewindowv2") {
+            if (eventName === "activewindow" || eventName === "activewindowv2") {
+                scheduleUpdates(true, false, false, true, true);
+                return;
+            }
+
+            if (eventName === "workspace" || eventName === "workspacev2" || eventName === "focusedmon" || eventName === "focusedmonv2") {
                 scheduleUpdates(false, false, false, true, true);
                 return;
             }
