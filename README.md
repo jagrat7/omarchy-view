@@ -4,7 +4,7 @@ A Hyprland workspace overview plugin with live window previews, seamless theme i
 
 ![Omarchy Overview Screenshot](preview.png)
 
-> 💡 **Credits & Attribution**: This plugin is adapted from and made compatible with Omarchy based on [Shanu-Kumawat/quickshell-overview](https://github.com/Shanu-Kumawat/quickshell-overview.git).
+> 💡 **Credits & Attribution**: This plugin is based on [AyushKr2003/omarchy-overview](https://github.com/AyushKr2003/omarchy-overview), which adapted [Shanu-Kumawat/quickshell-overview](https://github.com/Shanu-Kumawat/quickshell-overview.git) for Omarchy.
 
 ---
 
@@ -15,7 +15,7 @@ A Hyprland workspace overview plugin with live window previews, seamless theme i
 Install directly from GitHub using the Omarchy plugin CLI:
 
 ```bash
-omarchy plugin add https://github.com/AyushKr2003/omarchy-overview.git
+omarchy plugin add https://github.com/jagrat7/omarchy-view.git
 ```
 
 ---
@@ -134,8 +134,9 @@ Settings are read inline from `~/.config/omarchy/shell.json` inside the `plugins
 
 ## Credits
 
+- Maintained by [jagrat7](https://github.com/jagrat7).
+- Adapted for Omarchy shell plugin architecture, IPC, and icon library integration by [AyushKr2003](https://github.com/AyushKr2003) ([omarchy-overview](https://github.com/AyushKr2003/omarchy-overview)).
 - Original Quickshell Overview by [Shanu-Kumawat/quickshell-overview](https://github.com/Shanu-Kumawat/quickshell-overview.git).
-- Adapted for Omarchy shell plugin architecture, IPC, and icon library integration by [AyushKr2003](https://github.com/AyushKr2003).
 
 ---
 

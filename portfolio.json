@@ -1,0 +1,15 @@
+{
+  "type": "desktop",
+  "title": "Omarchy View",
+  "description": "Hyprland workspace overview plugin for Omarchy Shell with live window previews, theme integration, and app icon resolution.",
+  "tags": [
+    "QML",
+    "Quickshell",
+    "Hyprland",
+    "Omarchy"
+  ],
+  "image": "preview.png",
+  "images": [
+    "preview.png"
+  ]
+}
