@@ -34,7 +34,7 @@ Scope {
     }
 
     function entrySettings() {
-        const id = String(manifest?.id || "omarchy-overview");
+        const id = String(manifest?.id || "io.github.jagrat7.omarchy-view");
         const config = shell?.shellConfig || null;
         const plugins = config?.plugins || [];
         if (!Array.isArray(plugins))
@@ -360,13 +360,13 @@ Scope {
     }
 
     GlobalShortcut {
-        appid: "omarchy-overview"
+        appid: "omarchy-view"
         name: "next"
         onPressed: overviewScope.advanceWindowSwitch(1)
     }
 
     GlobalShortcut {
-        appid: "omarchy-overview"
+        appid: "omarchy-view"
         name: "previous"
         onPressed: overviewScope.advanceWindowSwitch(-1)
     }

@@ -1,6 +1,6 @@
 # Omarchy Overview Plugin
 
-A Hyprland workspace overview plugin with live window previews, seamless theme integration, and app icon resolution for [Omarchy Shell](https://github.com/AyushKr2003/omarchy-dotfiles).
+A Hyprland workspace overview plugin with live window previews, seamless theme integration, and app icon resolution for [Omarchy](https://github.com/basecamp/omarchy) Shell.
 
 ![Omarchy Overview Screenshot](preview.png)
 
@@ -13,25 +13,31 @@ A Hyprland workspace overview plugin with live window previews, seamless theme i
 Install directly from GitHub using the Omarchy plugin CLI:
 
 ```bash
-omarchy plugin add https://github.com/jagrat7/omarchy-view.git
+omarchy plugin add https://github.com/jagrat7/omarchy-view.git --enable
 ```
+
+Update it later with `omarchy plugin update io.github.jagrat7.omarchy-view`.
+
+> **Note**: This is a fork of [AyushKr2003/omarchy-overview](https://github.com/AyushKr2003/omarchy-overview)
+> with a different plugin id, so both can be installed side by side. Both
+> register the `overview` shell IPC target, so enable only one of them.
 
 ---
 
 ### Manual Installation
 
-Clone or copy this folder directly into your Omarchy plugins directory:
+Clone this repository into your Omarchy plugins directory:
 
 ```bash
-mkdir -p ~/.config/omarchy/plugins/omarchy-overview
-cp -r . ~/.config/omarchy/plugins/omarchy-overview/
+git clone https://github.com/jagrat7/omarchy-view.git \
+  ~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view
 ```
 
 Then rescan and enable the plugin:
 
 ```bash
-omarchy plugin rescan
-omarchy plugin enable omarchy-overview
+omarchy-shell shell rescanPlugins
+omarchy plugin enable io.github.jagrat7.omarchy-view
 ```
 
 ---
@@ -43,7 +49,7 @@ omarchy plugin enable omarchy-overview
 Remove the plugin using the Omarchy CLI:
 
 ```bash
-omarchy plugin remove omarchy-overview
+omarchy plugin remove io.github.jagrat7.omarchy-view
 ```
 
 ---
@@ -51,9 +57,9 @@ omarchy plugin remove omarchy-overview
 ### Manual Uninstallation
 
 ```bash
-omarchy plugin disable omarchy-overview
-rm -rf ~/.config/omarchy/plugins/omarchy-overview
-omarchy plugin rescan
+omarchy plugin disable io.github.jagrat7.omarchy-view
+rm -rf ~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view
+omarchy-shell shell rescanPlugins
 ```
 
 ---
@@ -72,7 +78,7 @@ Add the following binding to your `~/.config/hypr/bindings.lua`:
 
 ```lua
 hl.unbind("ALT + TAB")
-o.bind("ALT + TAB", "Overview", hl.dsp.global("omarchy-overview:next"), { repeating = true })
+o.bind("ALT + TAB", "Overview", hl.dsp.global("omarchy-view:next"), { repeating = true })
 ```
 
 The same global shortcut can be assigned to another modifier such as
@@ -95,7 +101,7 @@ Settings are read inline from `~/.config/omarchy/shell.json` inside the `plugins
 
 ```json
 {
-  "id": "omarchy-overview",
+  "id": "io.github.jagrat7.omarchy-view",
   "rows": 2,
   "columns": 5,
   "hideEmptyRows": true,

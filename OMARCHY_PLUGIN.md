@@ -5,14 +5,14 @@ This directory is packaged as a third-party Omarchy shell plugin.
 Install it at:
 
 ```text
-~/.config/omarchy/plugins/omarchy-overview/
+~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view/
 ```
 
 Then run:
 
 ```bash
-omarchy plugin rescan
-omarchy plugin enable omarchy-overview
+omarchy-shell shell rescanPlugins
+omarchy plugin enable io.github.jagrat7.omarchy-view
 ```
 
 Open it directly with:
@@ -25,7 +25,7 @@ For a Hyprland Lua keybind, use:
 
 ```lua
 hl.unbind("ALT + TAB")
-o.bind("ALT + TAB", "Overview", hl.dsp.global("omarchy-overview:next"), { repeating = true })
+o.bind("ALT + TAB", "Overview", hl.dsp.global("omarchy-view:next"), { repeating = true })
 ```
 
 Hold `Alt` to keep the overview open and press `Tab` repeatedly to cycle
@@ -35,17 +35,17 @@ cancels. The same global shortcut can be bound to `SUPER + TAB` or another
 supported modifier combination.
 
 Settings are read inline from `~/.config/omarchy/shell.json`, inside the
-`plugins` entry for `omarchy-overview`:
+`plugins` entry for `io.github.jagrat7.omarchy-view`:
 
 ```json
 {
-  "id": "omarchy-overview",
-  "rows": "2",
-  "columns": "5",
-  "hideEmptyRows": "true",
-  "showSpecialWorkspaces": "false",
-  "specialWorkspaceColumns": "5",
-  "showIcons": "true"
+  "id": "io.github.jagrat7.omarchy-view",
+  "rows": 2,
+  "columns": 5,
+  "hideEmptyRows": true,
+  "showSpecialWorkspaces": false,
+  "specialWorkspaceColumns": 5,
+  "showIcons": true
 }
 ```
 

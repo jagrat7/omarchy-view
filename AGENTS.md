@@ -5,7 +5,7 @@
 This repository is symlinked to:
 
 ```text
-~/.config/omarchy/plugins/omarchy-overview
+~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view
 ```
 
 Edit files in this repository, not through the symlink. The running Omarchy
@@ -18,7 +18,7 @@ Run these checks after changing the plugin:
 
 ```bash
 # Validate the plugin manifest and directory structure.
-omarchy plugin validate /home/jagrat/dev/omarchy/omarchy-overview
+omarchy plugin validate /home/jagrat/dev/omarchy-view
 
 # Validate edited QML files. Warnings from the existing project/import context
 # are acceptable, but the command must exit successfully.
@@ -43,8 +43,8 @@ hyprctl globalshortcuts
 ```
 
 `omarchy-shell shell ping` must return `ok`, and `listPlugins` must contain an
-enabled `omarchy-overview` entry. `hyprctl globalshortcuts` must list
-`omarchy-overview:next` and `omarchy-overview:previous`. If an agent sandbox
+enabled `io.github.jagrat7.omarchy-view` entry. `hyprctl globalshortcuts` must list
+`omarchy-view:next` and `omarchy-view:previous`. If an agent sandbox
 reports that the shell is not running while `quickshell list --all` shows an
 instance, rerun the Omarchy commands with desktop-session/escalated access;
 sandbox IPC can produce a false negative.
