@@ -5,7 +5,7 @@
 This repository is symlinked to:
 
 ```text
-~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view
+~/.config/omarchy/plugins/omarchy-view
 ```
 
 Edit files in this repository, not through the symlink. The running Omarchy
@@ -43,7 +43,7 @@ hyprctl globalshortcuts
 ```
 
 `omarchy-shell shell ping` must return `ok`, and `listPlugins` must contain an
-enabled `io.github.jagrat7.omarchy-view` entry. `hyprctl globalshortcuts` must list
+enabled `omarchy-view` entry. `hyprctl globalshortcuts` must list
 `omarchy-view:next` and `omarchy-view:previous`. If an agent sandbox
 reports that the shell is not running while `quickshell list --all` shows an
 instance, rerun the Omarchy commands with desktop-session/escalated access;

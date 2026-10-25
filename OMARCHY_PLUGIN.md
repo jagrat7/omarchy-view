@@ -5,14 +5,14 @@ This directory is packaged as a third-party Omarchy shell plugin.
 Install it at:
 
 ```text
-~/.config/omarchy/plugins/io.github.jagrat7.omarchy-view/
+~/.config/omarchy/plugins/omarchy-view/
 ```
 
 Then run:
 
 ```bash
 omarchy-shell shell rescanPlugins
-omarchy plugin enable io.github.jagrat7.omarchy-view
+omarchy plugin enable omarchy-view
 ```
 
 Open it directly with:
@@ -35,11 +35,11 @@ cancels. The same global shortcut can be bound to `SUPER + TAB` or another
 supported modifier combination.
 
 Settings are read inline from `~/.config/omarchy/shell.json`, inside the
-`plugins` entry for `io.github.jagrat7.omarchy-view`:
+`plugins` entry for `omarchy-view`:
 
 ```json
 {
-  "id": "io.github.jagrat7.omarchy-view",
+  "id": "omarchy-view",
   "rows": 2,
   "columns": 5,
   "hideEmptyRows": true,

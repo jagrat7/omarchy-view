@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.jagrat7.omarchy-view",
-  "name": "Overview v2",
+  "id": "omarchy-view",
+  "name": "Omarchy View",
   "version": "2.0.0",
   "author": "jagrat7",
   "description": "Hyprland workspace overview with live window previews.",

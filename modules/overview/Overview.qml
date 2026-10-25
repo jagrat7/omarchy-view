@@ -34,7 +34,7 @@ Scope {
     }
 
     function entrySettings() {
-        const id = String(manifest?.id || "io.github.jagrat7.omarchy-view");
+        const id = String(manifest?.id || "omarchy-view");
         const config = shell?.shellConfig || null;
         const plugins = config?.plugins || [];
         if (!Array.isArray(plugins))
