@@ -4,8 +4,6 @@ A Hyprland workspace overview plugin with live window previews, seamless theme i
 
 ![Omarchy Overview Screenshot](preview.png)
 
-> 💡 **Credits & Attribution**: This plugin is based on [AyushKr2003/omarchy-overview](https://github.com/AyushKr2003/omarchy-overview), which adapted [Shanu-Kumawat/quickshell-overview](https://github.com/Shanu-Kumawat/quickshell-overview.git) for Omarchy.
-
 ---
 
 ## Installation
