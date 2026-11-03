@@ -11,7 +11,7 @@ A workspace overview and Alt+Tab window switcher for [Omarchy](https://github.co
 - **Alt+Tab window switching** — hold the modifier and tap `Tab` to cycle windows in most-recently-used order, `Shift+Tab` to go back, and release to focus.
 - **Live workspace grid** — see every workspace at once with real-time window previews.
 - **Scrolling layout support** — workspaces using Hyprland's scrolling (infinite) layout expand to show windows that are off-screen.
-- **Drag and drop** — drag a window onto another workspace to move it there without leaving where you are.
+- **Drag and drop** — drag a window onto another workspace to move it there without leaving where you are, or onto another window in the same workspace to swap them.
 - **Keyboard navigation** — move around the grid with the arrow keys or `H` `J` `K` `L`, and jump to a workspace with the number keys.
 - **Mouse actions** — click a window to focus it, click a workspace to switch to it, and middle-click a window to close it.
 - **Special workspaces** — optionally show your scratchpads, toggle them, create new ones, and drag windows into them.
@@ -88,6 +88,8 @@ focus the highlighted window, or switch to the selected workspace if it's empty.
 | Left-click a window | Focus it |
 | Middle-click a window | Close it |
 | Drag a window onto a workspace | Move it there (you stay where you are) |
+| Drag a tiled window onto another in the same workspace | Swap them |
+| Drag a floating window within its workspace | Move it to the drop position |
 | Click a workspace | Switch to it |
 | Click outside the overview | Close the overview |
 

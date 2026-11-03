@@ -62,6 +62,7 @@ Item {
     property int draggingFromWorkspace: -1
     property int draggingTargetWorkspace: -1
     property string draggingTargetSpecialWorkspace: ""
+    property string draggingTargetWindowAddress: ""
     property int previewRecaptureToken: 0
     property var allWorkspaces: HyprlandData.allWorkspaces
     property bool previewsEnabled: Config.options.overview.previewsEnabled
@@ -446,6 +447,28 @@ Item {
         const contentWidth = geometry ? geometry.width * scale : root.workspaceImplicitWidth;
         const inset = Math.max(0, (workspaceWidth - contentWidth) / 2);
         return inset - (geometry?.minX ?? 0) * scale;
+    }
+
+    // Topmost tiled window preview under a point in windowSpace, used as a swap target.
+    function tiledWindowAt(point, workspaceId, excludeAddress) {
+        let best = null;
+        for (let i = 0; i < windowRepeater.count; i++) {
+            const item = windowRepeater.itemAt(i);
+            if (!item || !item.visible || item.address === excludeAddress)
+                continue;
+            if (item.windowData?.floating || (item.windowData?.workspace?.id ?? -1) !== workspaceId)
+                continue;
+            if (point.x < item.x || point.x > item.x + item.width || point.y < item.y || point.y > item.y + item.height)
+                continue;
+            if (!best || item.z > best.z)
+                best = item;
+        }
+        return best;
+    }
+
+    // Swaps and floating moves inside a workspace emit no movewindow event, so refresh explicitly.
+    function refreshAfterRearrange() {
+        HyprlandData.scheduleUpdates(true, false, false, false, false);
     }
 
     function specialWindowZ(win) {
@@ -1158,6 +1181,7 @@ Item {
             }
 
             Repeater { // Window repeater
+                id: windowRepeater
                 model: ScriptModel {
                     values: {
                         return ToplevelManager.toplevels.values.filter((toplevel) => {
@@ -1210,6 +1234,7 @@ Item {
                     availableWorkspaceHeight: root.workspaceImplicitHeight
                     widgetMonitorId: root.monitor.id
                     recaptureToken: root.previewRecaptureToken
+                    dropTarget: address === root.draggingTargetWindowAddress
 
                     property bool atInitPosition: (initX == x && initY == y)
 
@@ -1226,10 +1251,50 @@ Item {
                         interval: Config.options.hacks.arbitraryRaceConditionDelay
                         repeat: false
                         running: false
-                        onTriggered: {
-                            window.x = Math.round(window.initX)
-                            window.y = Math.round(window.initY)
+                        onTriggered: window.restoreGeometryBinding()
+                    }
+
+                    // Dragging assigns x/y, which breaks the initX/initY bindings.
+                    function restoreGeometryBinding() {
+                        window.x = Qt.binding(() => window.initX)
+                        window.y = Qt.binding(() => window.initY)
+                    }
+
+                    function rearrangeInWorkspace(dropPoint, cursorPoint) {
+                        const address = window.windowData?.address
+                        if (window.windowData?.floating) {
+                            //INFO: Move floating window within its workspace
+                            const dx = Math.round((window.x - window.initX) / (root.overviewScale * window.geometryScaleX))
+                            const dy = Math.round((window.y - window.initY) / (root.overviewScale * window.geometryScaleY))
+                            if (dx === 0 && dy === 0) {
+                                window.restoreGeometryBinding()
+                                return
+                            }
+                            if (Hyprland.usingLua) {
+                                Hyprland.dispatch(`hl.dsp.window.move({x = ${dx}, y = ${dy}, relative = true, window = 'address:${address}'})`);
+                            } else {
+                                Hyprland.dispatch(`movewindowpixel ${dx} ${dy},address:${address}`)
+                            }
+                        } else {
+                            const target = root.tiledWindowAt(dropPoint, window.windowData?.workspace?.id, window.address)
+                            if (!target) {
+                                window.restoreGeometryBinding()
+                                return
+                            }
+                            //INFO: Swap tiled windows within a workspace
+                            // Swapping warps the cursor to the moved window, so put it back where it was dropped.
+                            const cursorX = Math.round(cursorPoint.x + (root.monitorData?.x ?? 0))
+                            const cursorY = Math.round(cursorPoint.y + (root.monitorData?.y ?? 0))
+                            if (Hyprland.usingLua) {
+                                Hyprland.dispatch(`function() hl.dispatch(hl.dsp.window.swap({window = 'address:${address}', target = 'address:${target.windowData?.address}'})); hl.dispatch(hl.dsp.cursor.move({x = ${cursorX}, y = ${cursorY}})) end`);
+                            } else {
+                                Hyprland.dispatch(`focuswindow address:${address}`)
+                                Hyprland.dispatch(`swapwindow address:${target.windowData?.address}`)
+                                Hyprland.dispatch(`movecursor ${cursorX} ${cursorY}`)
+                            }
                         }
+                        root.refreshAfterRearrange()
+                        updateWindowPosition.restart()
                     }
 
                     z: !atInitPosition
@@ -1254,14 +1319,26 @@ Item {
                             window.Drag.hotSpot.x = mouse.x
                             window.Drag.hotSpot.y = mouse.y
                         }
-                        onReleased: {
+                        onPositionChanged: (mouse) => {
+                            if (!window.pressed)
+                                return
+                            const sameWorkspace = root.draggingTargetWorkspace === windowData?.workspace.id
+                            const target = (sameWorkspace && !windowData?.floating)
+                                ? root.tiledWindowAt(dragArea.mapToItem(windowSpace, mouse.x, mouse.y), windowData?.workspace.id, window.address)
+                                : null
+                            root.draggingTargetWindowAddress = target?.address ?? ""
+                        }
+                        onReleased: (mouse) => {
                             const targetWorkspace = root.draggingTargetWorkspace
                             const targetSpecialWorkspace = root.draggingTargetSpecialWorkspace
+                            const dropPoint = dragArea.mapToItem(windowSpace, mouse.x, mouse.y)
+                            const cursorPoint = dragArea.mapToItem(null, mouse.x, mouse.y)
                             window.pressed = false
                             window.Drag.active = false
                             root.draggingFromWorkspace = -1
                             root.draggingTargetWorkspace = -1
                             root.draggingTargetSpecialWorkspace = ""
+                            root.draggingTargetWindowAddress = ""
                             if (targetSpecialWorkspace === root.createSpecialWorkspaceTarget) {
                                 const createdName = root.nextSpecialWorkspaceName()
                                 //INFO: From normal TO special
@@ -1290,9 +1367,11 @@ Item {
                                 }
                                 updateWindowPosition.restart()
                             }
+                            else if (targetWorkspace !== -1) {
+                                window.rearrangeInWorkspace(dropPoint, cursorPoint)
+                            }
                             else {
-                                window.x = window.initX
-                                window.y = window.initY
+                                window.restoreGeometryBinding()
                             }
                         }
                         onClicked: (event) => {
