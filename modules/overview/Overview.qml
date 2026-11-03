@@ -397,6 +397,14 @@ Scope {
                 right: true
             }
 
+            // The switcher keeps its modifier held, so compositor binds like
+            // SUPER + mouse:272 (window.drag) would grab the real window under
+            // the overlay. Tab cycling is handled locally by keyHandler.
+            ShortcutInhibitor {
+                window: root
+                enabled: GlobalStates.overviewOpen
+            }
+
             HyprlandFocusGrab {
                 id: grab
                 windows: [root]
