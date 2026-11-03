@@ -1485,7 +1485,9 @@ Item {
                 property int activeWorkspaceColIndex: root.getWorkspaceColumn(root.effectiveActiveWorkspaceId)
                 x: root.workspaceXOffset(activeWorkspaceRowIndex, activeWorkspaceColIndex)
                 y: (root.workspaceImplicitHeight + root.scaledWorkspaceSpacing) * root.compactWorkspaceRow(activeWorkspaceRowIndex)
-                z: root.windowDraggingZ - 2
+                // Below the windows: themes with an opaque selected background would hide them.
+                // The workspace label border above still marks the active workspace.
+                z: root.windowZ - 1
                 width: root.workspaceDisplayWidth(root.effectiveActiveWorkspaceId)
                 height: root.workspaceImplicitHeight
                 color: root.workspaceCursorFill
