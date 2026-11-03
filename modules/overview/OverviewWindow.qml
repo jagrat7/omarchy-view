@@ -57,6 +57,7 @@ Item { // Window
     property bool hovered: false
     property bool pressed: false
     property bool selected: false
+    property bool dropTarget: false
 
     property var appLibrary: null
     property bool showIcons: Config.options.windowPreview.showIcons
@@ -337,13 +338,13 @@ Item { // Window
     Rectangle {
         anchors.fill: parent
         radius: Style.cornerRadius
-        color: root.selected ? ColorUtils.applyAlpha(Style.selectedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
+        color: (root.selected || root.dropTarget) ? ColorUtils.applyAlpha(Style.selectedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
             root.pressed ? ColorUtils.applyAlpha(Style.pressedFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.30)) :
             root.hovered ? ColorUtils.applyAlpha(Style.hoverFill, Math.min(1, root.effectiveWindowOverlayOpacity + 0.20)) :
             ColorUtils.applyAlpha(Color.popups.background, root.effectiveWindowOverlayOpacity)
-        border.color: root.selected ? Style.selectedBorderColor :
+        border.color: (root.selected || root.dropTarget) ? Style.selectedBorderColor :
             (root.hovered || root.pressed ? Style.hoverBorderColor : Style.normalBorderColor)
-        border.width: root.selected ? Math.max(2, Style.selectedBorderWidth) : Style.normalBorderWidth
+        border.width: (root.selected || root.dropTarget) ? Math.max(2, Style.selectedBorderWidth) : Style.normalBorderWidth
 
         Image {
             id: windowIcon
